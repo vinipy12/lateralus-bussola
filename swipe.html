@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Bussola deck</title>
+<style>
+  :root { --bg: #f4f4f5; --card: #fff; --ink: #18181b; --muted: #71717a; --band: #f3f4f6; --chip: #eef2ff;
+          --ok: #dcfce7; --ok-ink: #14532d; --warn: #fef3c7; --warn-ink: #78350f; --bad: #fee2e2; --bad-ink: #7f1d1d;
+          --pass: #ef4444; --apply: #22c55e; --link: #2563eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #09090b; --card: #18181b; --ink: #f4f4f5; --muted: #a1a1aa; --band: #27272a; --chip: #312e81;
+            --ok: #14532d; --ok-ink: #dcfce7; --warn: #78350f; --warn-ink: #fef3c7; --bad: #7f1d1d; --bad-ink: #fee2e2; --link: #60a5fa; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; font-size: 13px; color: var(--muted); }
+  select { font: inherit; color: var(--ink); background: transparent; border: 1px solid #8886; border-radius: 8px; padding: 4px 8px; }
+  #stage { position: relative; flex: 1; margin: 0 12px; }
+  .jc { position: absolute; inset: 0; overflow-y: auto; background: var(--card); border-radius: 18px; box-shadow: 0 4px 18px #0003;
+        padding: 16px; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+  .jc.under { transform: scale(.96) translateY(10px); }
+  .jc.snap { transition: transform .25s ease; }
+  .jc.gone { transition: transform .3s ease-in; }
+  .stamp { position: absolute; top: 18px; font-weight: 800; font-size: 24px; letter-spacing: .08em; padding: 2px 10px;
+           border: 3px solid; border-radius: 8px; opacity: 0; pointer-events: none; }
+  .stamp-pass { right: 18px; color: var(--pass); transform: rotate(12deg); }
+  .stamp-apply { left: 18px; color: var(--apply); transform: rotate(-12deg); }
+  .dealbreaker { background: var(--bad); color: var(--bad-ink); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; font-weight: 600; }
+  .band { border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; background: var(--band); }
+  .pay { font-size: 21px; font-weight: 800; }
+  .pay small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--chip); }
+  .ok { background: var(--ok); color: var(--ok-ink); } .warn { background: var(--warn); color: var(--warn-ink); } .bad { background: var(--bad); color: var(--bad-ink); }
+  .co { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .ti { font-size: 19px; font-weight: 700; margin: 2px 0 8px; }
+  .sum { margin: 6px 0 10px; }
+  .muted { color: var(--muted); }
+  .pc h5 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .pc ul, .reasons { margin: 0; padding-left: 18px; } .pc li { margin: 4px 0; cursor: pointer; }
+  .g h5 { color: #15803d; } .r h5 { color: #b91c1c; }
+  .quote { font-size: 13px; color: var(--muted); font-style: italic; margin-top: 2px; }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .open { display: inline-block; margin: 14px 0 4px; color: var(--link); font-weight: 600; text-decoration: none; }
+  footer { display: flex; justify-content: space-around; align-items: center; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  footer button { width: 60px; height: 60px; border-radius: 50%; border: 2px solid; background: var(--card); font-size: 24px; font-weight: 700; }
+  #pass { border-color: var(--pass); color: var(--pass); } #apply { border-color: var(--apply); color: var(--apply); }
+  #undo { width: 44px; height: 44px; font-size: 18px; border-color: #8886; color: var(--muted); }
+  .end { padding: 24px 8px; } .end a { color: var(--link); } .end li { margin: 6px 0; }
+  #toast { position: fixed; left: 16px; right: 16px; bottom: 96px; background: #18181b; color: #fff; border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header><select id="profile" aria-label="Profile"></select><span id="count"></span></header>
+<main id="stage"></main>
+<footer>
+  <button id="pass" aria-label="Pass">✕</button>
+  <button id="undo" aria-label="Undo">↶</button>
+  <button id="apply" aria-label="Apply">✓</button>
+</footer>
+<div id="toast" hidden></div>
+<script>
+"use strict";
+// Every string from a job ad is untrusted: it is set with textContent, and links must be https.
+const $ = (id) => document.getElementById(id);
+const stage = $("stage");
+const THRESHOLD = 0.3;
+let profile = null, country = "", cards = [], busy = false, deckToken = 0;
+
+function setBusy(value) {
+  busy = value;
+  $("profile").disabled = value;
+}
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined && text !== null) node.textContent = text;
+  return node;
+}
+
+function link(url, text, className) {
+  const anchor = el("a", className, text);
+  if (/^https:\/\//.test(url)) { anchor.href = url; anchor.target = "_blank"; anchor.rel = "noopener noreferrer"; }
+  return anchor;
+}
+
+async function api(path, body) {
+  const options = body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {};
+  const response = await fetch(path, options);
+  if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
+  return response.json();
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function toast(message) {
+  const box = $("toast");
+  box.textContent = message;
+  box.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { box.hidden = true; }, 4000);
+}
+
+function flag(code) {
+  return /^[A-Z]{2}$/.test(code) ? String.fromCodePoint(...[...code].map((c) => 0x1f1a5 + c.charCodeAt(0))) : code;
+}
+
+function chip(text, tone) { return el("span", `chip ${tone || ""}`, text); }
+
+function claimList(title, claims, className) {
+  const box = el("div", `pc ${className}`);
+  box.append(el("h5", null, title));
+  const list = el("ul");
+  for (const claim of claims) {
+    const item = el("li", null, claim.text);
+    const quote = el("div", "quote", `“${claim.quote}”`);
+    quote.hidden = true;
+    item.append(quote);
+    item.addEventListener("click", () => { quote.hidden = !quote.hidden; });
+    list.append(item);
+  }
+  box.append(list);
+  return box;
+}
+
+function renderCard(item) {
+  const card = el("article", "jc");
+  card.append(el("div", "stamp stamp-pass", "PASS"), el("div", "stamp stamp-apply", "APPLY"));
+  const ai = item.card;
+  if (ai && ai.dealbreaker) card.append(el("div", "dealbreaker", `⚠ ${ai.dealbreaker}`));
+  const band = el("div", "band");
+  const pay = el("div", "pay", item.compensation.text);
+  if (item.compensation.note) pay.append(el("small", null, item.compensation.note));
+  band.append(pay);
+  if (ai) {
+    const chips = el("div", "chips");
+    chips.append(chip(`${flag(country)} ${ai.eligible}`, { yes: "ok", no: "bad", unclear: "warn" }[ai.eligible]));
+    chips.append(chip(ai.timezone ? `🕑 ${ai.timezone}` : "No overlap stated"));
+    if (ai.seniority) chips.append(chip(ai.seniority));
+    band.append(chips);
+  }
+  card.append(band, el("div", "co", `${item.company} · ${item.source}`), el("h2", "ti", item.title));
+  if (ai) {
+    card.append(el("p", "sum", ai.summary));
+    if (ai.pros.length) card.append(claimList("Pros", ai.pros, "g"));
+    if (ai.cons.length) card.append(claimList("Cons", ai.cons, "r"));
+    if (ai.must_haves.length) {
+      const must = el("div", "chips");
+      for (const text of ai.must_haves) must.append(chip(text));
+      card.append(must);
+    }
+    if (item.dropped_claims > 0) {
+      card.append(el("div", "meta", `${item.dropped_claims} unsupported claim${item.dropped_claims === 1 ? "" : "s"} dropped`));
+    }
+  } else {
+    card.append(el("p", "sum muted", "AI summary unavailable"));
+    const reasons = el("ul", "reasons");
+    for (const reason of item.reasons) reasons.append(el("li", null, reason));
+    card.append(reasons);
+  }
+  card.append(link(item.url, "Open posting ↗", "open"));
+  return card;
+}
+
+function attachDrag(card) {
+  const stamps = { pass: card.querySelector(".stamp-pass"), apply: card.querySelector(".stamp-apply") };
+  let pointer = null, startX = 0, startY = 0, dx = 0, dragging = false, swallowClick = false;
+  card.addEventListener("pointerdown", (event) => {
+    if (busy || event.button !== 0) return;
+    swallowClick = false;
+    pointer = event.pointerId; startX = event.clientX; startY = event.clientY; dx = 0; dragging = false;
+    card.classList.remove("snap");
+  });
+  card.addEventListener("pointermove", (event) => {
+    if (event.pointerId !== pointer) return;
+    const moveX = event.clientX - startX;
+    if (!dragging) {
+      // Small or mostly vertical moves stay taps and scrolls.
+      if (Math.abs(moveX) < 8 || Math.abs(moveX) < Math.abs(event.clientY - startY)) return;
+      dragging = true;
+      card.setPointerCapture(pointer);
+    }
+    dx = moveX;
+    card.style.transform = `translateX(${dx}px) rotate(${dx / 20}deg)`;
+    const strength = Math.min(Math.abs(dx) / (innerWidth * THRESHOLD), 1);
+    stamps.apply.style.opacity = dx > 0 ? strength : 0;
+    stamps.pass.style.opacity = dx < 0 ? strength : 0;
+  });
+  const release = (event) => {
+    if (event.pointerId !== pointer) return;
+    pointer = null;
+    if (!dragging) return;
+    dragging = false;
+    swallowClick = true;
+    if (Math.abs(dx) > innerWidth * THRESHOLD) { commit(dx > 0 ? "apply" : "pass"); return; }
+    snapBack();
+  };
+  const snapBack = () => {
+    card.classList.add("snap");
+    card.style.transform = "";
+    stamps.apply.style.opacity = 0;
+    stamps.pass.style.opacity = 0;
+  };
+  const cancel = (event) => {
+    if (event.pointerId !== pointer) return;
+    pointer = null;
+    if (!dragging) return;
+    dragging = false;
+    swallowClick = true;
+    snapBack();
+  };
+  card.addEventListener("pointerup", release);
+  card.addEventListener("pointercancel", cancel);
+  card.addEventListener("click", (event) => {
+    if (swallowClick) { event.stopPropagation(); event.preventDefault(); swallowClick = false; }
+  }, true);
+}
+
+function render() {
+  stage.replaceChildren();
+  $("count").textContent = cards.length ? `${cards.length} left` : "";
+  if (!cards.length) { renderEnd(); return; }
+  if (cards[1]) {
+    const under = renderCard(cards[1]);
+    under.classList.add("under");
+    stage.append(under);
+  }
+  const top = renderCard(cards[0]);
+  top.classList.add("top");
+  attachDrag(top);
+  stage.append(top);
+}
+
+async function renderEnd() {
+  const end = el("section", "end");
+  end.append(el("h2", null, "All caught up"));
+  stage.append(end);
+  try {
+    const { applies } = await api(`/api/applies?profile=${encodeURIComponent(profile)}`);
+    if (!applies.length) { end.append(el("p", "muted", "No apply swipes this week.")); return; }
+    end.append(el("p", "muted", "Apply swipes this week:"));
+    const list = el("ul");
+    for (const apply of applies) {
+      const item = el("li");
+      item.append(link(apply.url, `${apply.company} — ${apply.title}`));
+      list.append(item);
+    }
+    end.append(list);
+  } catch (error) {
+    end.append(el("p", "muted", `Could not load apply swipes: ${error.message}`));
+  }
+}
+
+async function commit(decision) {
+  if (busy || !cards.length) return;
+  setBusy(true);
+  const card = stage.querySelector(".jc.top");
+  if (card) {
+    const right = decision === "apply";
+    card.classList.remove("snap");
+    card.classList.add("gone");
+    card.querySelector(right ? ".stamp-apply" : ".stamp-pass").style.opacity = 1;
+    card.style.transform = `translateX(${right ? 150 : -150}vw) rotate(${right ? 30 : -30}deg)`;
+  }
+  try {
+    await Promise.all([api("/api/swipe", { profile, url: cards[0].url, decision }), wait(300)]);
+    cards.shift();
+  } catch (error) {
+    toast(`Swipe not saved: ${error.message}`);
+  }
+  setBusy(false);
+  render();
+}
+
+async function loadDeck() {
+  const mine = ++deckToken;
+  const requested = profile;
+  const data = await api(`/api/deck?profile=${encodeURIComponent(requested)}`);
+  if (mine !== deckToken || requested !== profile) return;
+  cards = data.cards;
+  country = data.country;
+  render();
+}
+
+async function undo() {
+  if (busy) return;
+  setBusy(true);
+  try {
+    const result = await api("/api/undo", { profile });
+    if (!result.undone) toast("Nothing to undo");
+    await loadDeck();
+  } catch (error) {
+    toast(`Undo failed: ${error.message}`);
+  }
+  setBusy(false);
+}
+
+$("pass").addEventListener("click", () => commit("pass"));
+$("apply").addEventListener("click", () => commit("apply"));
+$("undo").addEventListener("click", undo);
+document.addEventListener("keydown", (event) => {
+  if (/^(SELECT|INPUT|TEXTAREA)$/.test(event.target.tagName)) return;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (event.key === "ArrowLeft") commit("pass");
+  else if (event.key === "ArrowRight") commit("apply");
+});
+
+async function start() {
+  try {
+    const { profiles } = await api("/api/profiles");
+    const select = $("profile");
+    for (const name of profiles) select.append(new Option(name, name));
+    let saved = null;
+    try { saved = localStorage.getItem("bussola-profile"); } catch (_) {}
+    profile = profiles.includes(saved) ? saved : profiles[0];
+    if (!profile) { stage.append(el("p", "end muted", "No profiles found.")); return; }
+    select.value = profile;
+    select.addEventListener("change", () => {
+      if (busy) { select.value = profile; return; }
+      profile = select.value;
+      try { localStorage.setItem("bussola-profile", profile); } catch (_) {}
+      loadDeck().catch((error) => toast(`Could not load deck: ${error.message}`));
+    });
+    await loadDeck();
+  } catch (error) {
+    toast(`Could not load: ${error.message}`);
+  }
+}
+start();
+</script>
+</body>
+</html>

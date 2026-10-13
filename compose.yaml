@@ -1,0 +1,12 @@
+services:
+  swipe:
+    build: .
+    ports:
+      - "8765:8765"
+    # Run as the host user: files SQLite creates in ./out (radar.db-wal, -shm) must stay writable by the host jobs.
+    user: "${BUSSOLA_UID:-1000}:${BUSSOLA_GID:-1000}"
+    env_file: .env
+    volumes:
+      - ./out:/app/out
+      - ./profiles:/app/profiles:ro
+    restart: unless-stopped

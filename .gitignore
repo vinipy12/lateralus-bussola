@@ -1,0 +1,7 @@
+out/
+__pycache__/
+*.pyc
+.superpowers/
+profiles/*
+!profiles/example/
+.env

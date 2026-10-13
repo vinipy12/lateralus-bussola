@@ -1,0 +1,12 @@
+[Unit]
+Description=Weekly remote-job radar and AI job cards
+
+[Service]
+Type=oneshot
+# %h expands to your home directory. Change the path if you cloned the repository elsewhere.
+WorkingDirectory=%h/bussola
+# PATH must reach the `codex` CLI you verified (see README). If Codex is installed with nvm or in a
+# non-standard prefix, put that bin directory first, e.g. %h/.nvm/versions/node/<version>/bin
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+TimeoutStartSec=2h
+ExecStart=/bin/sh -c '/usr/bin/python3 radar.py --all-active && /usr/bin/python3 enrich.py --all-active'

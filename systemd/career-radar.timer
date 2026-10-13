@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the weekly remote-job radar each Monday
+
+[Timer]
+# Runs in the machine's local time zone. Append an IANA zone (e.g. "Mon *-*-* 09:20:00 Europe/Lisbon") to pin one.
+OnCalendar=Mon *-*-* 09:20:00
+Persistent=true
+Unit=career-radar.service
+
+[Install]
+WantedBy=timers.target

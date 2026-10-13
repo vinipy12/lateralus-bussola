@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "eligible", "eligible_quote", "timezone", "compensation", "seniority", "must_haves", "pros", "cons", "dealbreaker", "dealbreaker_quote"],
+  "properties": {
+    "summary": {"type": "string"},
+    "eligible": {"type": "string", "enum": ["yes", "no", "unclear"]},
+    "eligible_quote": {"type": ["string", "null"]},
+    "timezone": {"type": ["string", "null"]},
+    "compensation": {"type": ["string", "null"]},
+    "seniority": {"type": ["string", "null"]},
+    "must_haves": {"type": "array", "items": {"type": "string"}},
+    "pros": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
+    "cons": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
+    "dealbreaker": {"type": ["string", "null"]},
+    "dealbreaker_quote": {"type": ["string", "null"]}
+  },
+  "$defs": {
+    "claim": {"type": "object", "additionalProperties": false, "required": ["text", "quote"],
+              "properties": {"text": {"type": "string"}, "quote": {"type": "string"}}}
+  }
+}

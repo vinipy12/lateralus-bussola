@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["search_queries", "title_include", "title_exclude", "specialty_exclude", "core_terms", "adjacent_terms", "bonus_terms", "eligible_region_terms", "fit_profile"],
+  "properties": {
+    "search_queries": {"type": "array", "items": {"type": "string"}},
+    "title_include": {"type": "array", "items": {"type": "string"}},
+    "title_exclude": {"type": "array", "items": {"type": "string"}},
+    "specialty_exclude": {"type": "array", "items": {"type": "string"}},
+    "core_terms": {"type": "array", "items": {"type": "string"}},
+    "adjacent_terms": {"type": "array", "items": {"type": "string"}},
+    "bonus_terms": {"type": "array", "items": {"type": "string"}},
+    "eligible_region_terms": {"type": "array", "items": {"type": "string"}},
+    "fit_profile": {"type": "string"}
+  }
+}

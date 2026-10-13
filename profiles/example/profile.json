@@ -1,0 +1,24 @@
+{
+  "name": "example",
+  "active": false,
+  "country": "BR",
+  "eligible_region_terms": ["brazil", "brasil", "latam", "latin america", "americas", "worldwide", "anywhere", "global"],
+  "remote_only": true,
+  "min_usd_month": 5000,
+  "max_results": 10,
+  "search_queries": ["AI engineer", "LLM engineer", "Python backend", "full stack engineer"],
+  "_sources_note": "The boards below are placeholders. Replace them with real board identifiers from the hosted board URLs you want to watch.",
+  "sources": [
+    {"type": "greenhouse", "board": "acme-example", "company": "Acme (example)"},
+    {"type": "ashby", "board": "globex-example", "company": "Globex (example)"}
+  ],
+  "applied_urls": [],
+  "applied_roles": [],
+  "title_include": ["ai", "llm", "agent", "machine learning", "full stack", "back end", "platform", "software engineer"],
+  "title_exclude": ["intern", "internship", "junior", "staff", "principal", "director", "manager", "recruiter", "designer"],
+  "specialty_exclude": ["inference optimization", "computer vision", "embedded", "multilingual data", "data scientist", "security engineer", "java developer"],
+  "core_terms": ["ai", "llm", "agent", "agents", "rag", "gen ai", "langgraph", "language model", "language models"],
+  "adjacent_terms": ["python", "fastapi", "django", "flask", "api", "postgres", "mongodb", "redis", "backend", "back end"],
+  "bonus_terms": ["react", "typescript", "full stack", "product", "frontend", "front end"],
+  "fit_profile": "Fictional example candidate: senior backend engineer who builds LLM-powered services, comfortable with React and TypeScript product work. Wants remote roles only."
+}
